@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Virtual environment
+.venv/
+
+# Local database — contains real personal health data, never commit
+*.db
+
+# Manual data exports (real weigh-ins, food logs) — private
+imports/*
+!imports/.gitkeep
+!imports/README.md
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store

@@ -1,0 +1,16 @@
+{
+  "sources": {
+    "strava": {
+      "enabled": true,
+      "note": "Official Strava OAuth API. Credentials come from .env."
+    },
+    "mynetdiary": {
+      "enabled": true,
+      "note": "Reads the official CSV export you drop into imports/."
+    },
+    "liftoff": {
+      "enabled": false,
+      "note": "Unofficial private-API route. Disabled by default; enable with --enable-liftoff. Personal use only."
+    }
+  }
+}

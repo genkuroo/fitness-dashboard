@@ -1,0 +1,8 @@
+# Core — the app runs fully on these, with no AI dependency.
+requests
+flask
+pandas
+
+# Optional (Phase 6 only): manual, text-only trend summaries.
+# The dashboard and all charts work without this installed.
+#   pip install anthropic
