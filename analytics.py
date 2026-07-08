@@ -102,6 +102,159 @@ def _days_before(date_str, days):
     return (pd.to_datetime(date_str) - pd.Timedelta(days=days)).strftime("%Y-%m-%d")
 
 
+# --- Phase 5: cross-source analytics ----------------------------------------
+#
+# The payoff. Everything above summarizes one source at a time. These functions
+# put all four sources on a single weekly timeline and ask whether they actually
+# move together — the one question no single app (Strava / MyNetDiary / Liftoff)
+# can answer, because none of them can see the other two.
+
+def _weekly_sum(conn, sql, value_col):
+    """Resample a dated value column into a weekly (Mon-anchored) sum series."""
+    df = _read(conn, sql, parse_dates=["date"])
+    if df.empty:
+        return pd.Series(dtype=float)
+    return (df.set_index("date")
+              .resample("W-MON", label="left", closed="left")[value_col]
+              .sum())
+
+
+def _weekly_mean(conn, sql, value_col):
+    """Resample a dated value column into a weekly (Mon-anchored) mean series."""
+    df = _read(conn, sql, parse_dates=["date"])
+    if df.empty:
+        return pd.Series(dtype=float)
+    return (df.set_index("date")
+              .resample("W-MON", label="left", closed="left")[value_col]
+              .mean())
+
+
+def _normalize(s: pd.Series) -> pd.Series:
+    """Min-max scale a series into 0..1. Flat series -> all zeros (no signal)."""
+    lo, hi = s.min(), s.max()
+    if pd.isna(lo) or hi == lo:
+        return pd.Series(0.0, index=s.index)
+    return (s - lo) / (hi - lo)
+
+
+def weekly_frame(conn) -> pd.DataFrame:
+    """One row per calendar week, every source aligned on the same index.
+
+    This is the join that the whole project exists for. Cardio and strength come
+    in as weekly sums; calories and weight as weekly averages (a daily reading is
+    noisy, the week's average is the real trend). Weeks with no training are a
+    genuine 0; weeks with no weigh-in / no food log stay NaN (missing != zero).
+
+    'training_load' is a synthetic 0-100 index: running miles and strength volume
+    live in different units and can't just be added, so each is min-max normalized
+    across the block and averaged. It's a relative "how hard was this week" number,
+    not an absolute one — documented here and in the chart tooltip so it's honest.
+    """
+    strength_sql = "SELECT date, weight * reps AS volume FROM strength_sets"
+    frame = pd.DataFrame({
+        "run_mi": _weekly_sum(conn, "SELECT date, distance_m FROM activities",
+                              "distance_m") / METERS_PER_MILE,
+        "str_vol": _weekly_sum(conn, strength_sql, "volume") / 1000.0,
+        "avg_cal": _weekly_mean(conn, "SELECT date, calories FROM nutrition",
+                                "calories"),
+        "weight": _weekly_mean(conn, "SELECT date, weight FROM body_metrics",
+                               "weight"),
+    })
+    if frame.empty:
+        return frame
+
+    frame = frame.sort_index()
+    # Training happened or it didn't — absence is a real zero for load.
+    frame["run_mi"] = frame["run_mi"].fillna(0.0)
+    frame["str_vol"] = frame["str_vol"].fillna(0.0)
+    frame["training_load"] = (
+        (_normalize(frame["run_mi"]) + _normalize(frame["str_vol"])) / 2 * 100
+    )
+    # Week-over-week weight change: the thing calories/training should predict.
+    frame["weight_delta"] = frame["weight"].diff()
+    return frame
+
+
+def cross_source(conn) -> dict:
+    """Series for the combined weekly timeline chart (dual-axis: weight, cal, load)."""
+    frame = weekly_frame(conn)
+    if frame.empty:
+        return {"labels": [], "weight": [], "calories": [], "load": []}
+
+    def col(name, nd):
+        return [None if pd.isna(v) else round(v, nd) for v in frame[name].tolist()]
+
+    return {
+        "labels": [d.strftime("%Y-%m-%d") for d in frame.index],
+        "weight": col("weight", 1),
+        "calories": [None if pd.isna(v) else round(v) for v in frame["avg_cal"].tolist()],
+        "load": col("training_load", 0),
+    }
+
+
+def _pearson(a: pd.Series, b: pd.Series):
+    """Pearson r over the weeks where BOTH series are present. (r, n)."""
+    paired = pd.DataFrame({"a": a, "b": b}).dropna()
+    if len(paired) < 3 or paired["a"].nunique() < 2 or paired["b"].nunique() < 2:
+        return None, len(paired)
+    return float(paired["a"].corr(paired["b"])), len(paired)
+
+
+def _strength_word(r: float) -> str:
+    a = abs(r)
+    if a < 0.2:
+        return "no clear"
+    if a < 0.4:
+        return "a weak"
+    if a < 0.7:
+        return "a moderate"
+    return "a strong"
+
+
+def correlations(conn) -> list:
+    """Do the sources actually move together? Pearson r on the weekly frame.
+
+    Each entry pairs the raw number with a plain-English reading, so the dashboard
+    states what it found instead of making the viewer decode a coefficient.
+    """
+    frame = weekly_frame(conn)
+
+    # (key, label, series a, series b, phrase when r is positive, when negative)
+    specs = [
+        ("cal_weight", "Calories vs weight change",
+         "avg_cal", "weight_delta",
+         "weeks you ate more, your weight trended up",
+         "weeks you ate more, your weight still trended down"),
+        ("load_weight", "Training vs weight change",
+         "training_load", "weight_delta",
+         "harder-training weeks came with weight ticking up",
+         "harder-training weeks came with weight trending down"),
+        ("load_cal", "Training vs calories",
+         "training_load", "avg_cal",
+         "you ate more on your harder-training weeks",
+         "you ate less on your harder-training weeks"),
+    ]
+
+    out = []
+    for key, label, a, b, pos, neg in specs:
+        if frame.empty:
+            r, n = None, 0
+        else:
+            r, n = _pearson(frame[a], frame[b])
+        if r is None:
+            out.append({"key": key, "label": label, "r": None, "n": n,
+                        "sentence": "Not enough overlapping weeks yet.", "sign": "flat"})
+            continue
+        word = _strength_word(r)
+        reading = pos if r >= 0 else neg
+        sentence = (f"{word.capitalize()} link — {reading}."
+                    if word != "no clear" else "No clear link in this window.")
+        out.append({"key": key, "label": label, "r": round(r, 2), "n": n,
+                    "sentence": sentence,
+                    "sign": "flat" if word == "no clear" else ("up" if r >= 0 else "down")})
+    return out
+
+
 def dashboard_data(conn) -> dict:
     """Everything the dashboard template needs, in one call."""
     return {
@@ -110,4 +263,6 @@ def dashboard_data(conn) -> dict:
         "calories": calories_series(conn),
         "running": weekly_running_miles(conn),
         "strength": weekly_strength_volume(conn),
+        "cross": cross_source(conn),
+        "correlations": correlations(conn),
     }

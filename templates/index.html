@@ -83,6 +83,25 @@
              border-radius: 12px; padding: 40px; text-align: center;
              color: var(--text-secondary); }
     code { background: var(--gridline); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+
+    /* Cross-source section (Phase 5) */
+    .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+                     color: var(--muted); font-weight: 600; margin: 28px 0 12px; }
+    .chart-box.tall { height: 300px; }
+    .insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+                margin-bottom: 8px; }
+    @media (max-width: 720px) { .insights { grid-template-columns: 1fr; } }
+    .insight { background: var(--surface); border: 1px solid var(--border);
+               border-left: 3px solid var(--baseline); border-radius: 10px; padding: 14px; }
+    .insight.up   { border-left-color: var(--series-cal); }
+    .insight.down { border-left-color: var(--series-run); }
+    .insight .ilabel { font-size: 12px; color: var(--muted); text-transform: uppercase;
+                       letter-spacing: 0.04em; margin-bottom: 6px; }
+    .insight .r { font-size: 24px; font-weight: 650; letter-spacing: -0.02em;
+                  font-variant-numeric: tabular-nums; }
+    .insight .r small { font-size: 12px; font-weight: 500; color: var(--muted); }
+    .insight .isay { font-size: 13px; color: var(--text-secondary); margin-top: 6px;
+                     line-height: 1.45; }
   </style>
 </head>
 <body>
@@ -158,6 +177,30 @@
         </div>
       </div>
 
+      <div class="section-label">Cross-source — one timeline</div>
+      <div class="panel" style="margin-bottom: 16px;">
+        <h2>Weight, calories &amp; training load by week</h2>
+        <p class="cap">Bodyweight (left axis) and average daily calories (right axis) as
+           lines; training load — a 0–100 index blending running miles and lifting
+           volume — as bars behind. The question: do they move together?</p>
+        <div class="chart-box tall"><canvas id="chart-cross"></canvas></div>
+      </div>
+      <script type="application/json" id="data-cross">{{ data.cross | tojson }}</script>
+
+      <div class="insights">
+        {% for c in data.correlations %}
+          <div class="insight {{ c.sign }}">
+            <div class="ilabel">{{ c.label }}</div>
+            <div class="r">
+              {% if c.r is not none %}{{ '+' if c.r >= 0 else '' }}{{ c.r }}<small> r · {{ c.n }} wks</small>
+              {% else %}—{% endif %}
+            </div>
+            <div class="isay">{{ c.sentence }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="section-label">Per-source detail</div>
       <div class="grid">
         {{ panel("weight", "Bodyweight", "Daily, lb", data.weight, "line", "--series-weight", "lb") }}
         {{ panel("calories", "Calorie intake", "Daily, kcal", data.calories, "line", "--series-cal", "kcal") }}
@@ -221,10 +264,74 @@
       });
     }
 
+    // The Phase 5 payoff: one mixed, dual-axis chart. Weight and calories are
+    // lines on their own y-axes (they share a timeline but not a unit); training
+    // load rides a hidden 0–300 axis so its bars sit low, reading as a backdrop
+    // to the lines rather than competing with them.
+    function buildCross() {
+      const el = document.getElementById('chart-cross');
+      if (!el) return null;
+      const d = JSON.parse(document.getElementById('data-cross').textContent);
+      const cWeight = css('--series-weight'), cCal = css('--series-cal'), cLoad = css('--series-str');
+      return new Chart(el, {
+        data: {
+          labels: d.labels,
+          datasets: [
+            { type: 'bar', label: 'Training load', data: d.load, yAxisID: 'yLoad',
+              backgroundColor: cLoad + '55', borderRadius: 3, order: 3,
+              categoryPercentage: 0.9, barPercentage: 0.9 },
+            { type: 'line', label: 'Weight (lb)', data: d.weight, yAxisID: 'y',
+              borderColor: cWeight, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+              tension: 0.25, spanGaps: true, order: 1 },
+            { type: 'line', label: 'Avg calories', data: d.calories, yAxisID: 'y1',
+              borderColor: cCal, borderWidth: 2, borderDash: [4, 3], pointRadius: 0,
+              pointHoverRadius: 4, tension: 0.25, spanGaps: true, order: 2 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: (c) => {
+                  if (c.dataset.yAxisID === 'y') return ` Weight: ${c.formattedValue} lb`;
+                  if (c.dataset.yAxisID === 'y1') return ` Calories: ${c.formattedValue} kcal`;
+                  return ` Training load: ${c.formattedValue}/100`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { display: false }, border: { color: css('--baseline') },
+              ticks: { maxTicksLimit: 8, maxRotation: 0, autoSkip: true, color: css('--muted') },
+            },
+            y: {
+              position: 'left', grace: '12%',
+              grid: { color: css('--gridline'), drawTicks: false }, border: { display: false },
+              ticks: { maxTicksLimit: 5, color: cWeight },
+              title: { display: true, text: 'lb', color: css('--muted') },
+            },
+            y1: {
+              position: 'right', grace: '12%',
+              grid: { display: false }, border: { display: false },
+              ticks: { maxTicksLimit: 5, color: cCal },
+              title: { display: true, text: 'kcal', color: css('--muted') },
+            },
+            yLoad: { display: false, min: 0, max: 300 },
+          },
+        },
+      });
+    }
+
     function buildAll() {
       ['weight', 'calories', 'running', 'strength'].forEach((id) => {
         if (document.getElementById('chart-' + id)) charts[id] = build(id);
       });
+      const cross = buildCross();
+      if (cross) charts.cross = cross;
     }
     buildAll();
 

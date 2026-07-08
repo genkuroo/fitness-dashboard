@@ -56,8 +56,11 @@ does.
       KPI tiles + 4 charts (analytics.py → Chart.js), data tables, Sync button.
 - [x] **Phase 4 — Liftoff connector.** Opt-in file importer (`imports/liftoff_*.json`,
       `--enable-liftoff`) → `strength_sets`. Keeps only WR sets; kg→lb. No creds.
-- [ ] **Phase 5 — Cross-source analytics.** pandas join → Chart.js (training load
-      vs weight vs calories). The payoff.
+- [x] **Phase 5 — Cross-source analytics.** `weekly_frame()` aligns all four sources
+      on one weekly index; a dual-axis Chart.js panel shows weight + calories (lines)
+      over a training-load index (bars), and an insights strip reports Pearson `r`
+      for calories↔weight-change, training↔weight-change, training↔calories in plain
+      English. Demo seeder simulates weight from energy balance so the signal is real.
 - [ ] **Phase 6 — (optional) Claude trend summary.** Manual, text-only prose caption.
 
 ## Running

@@ -87,7 +87,14 @@ Liftoff (opt-in)┘                                   (SQLite)     (Flask, chart
 
 ## Status
 
-Phase 0 (scaffold) complete. See `CLAUDE.md` for the phase checklist.
+Phases 0–5 complete — the pipeline, all three connectors, the dashboard, and the
+**cross-source view** are in. That last one is the payoff: alongside the per-source
+charts, the dashboard now aligns every feed on a single weekly timeline (weight and
+calories as lines, a training-load index as bars) and computes the correlations
+between them — reporting, in plain English, whether eating more actually tracked
+with gaining and training harder tracked with losing. Phase 6 (an optional,
+text-only Claude trend summary) is the only piece left. See `CLAUDE.md` for the
+full phase checklist.
 
 ## What it's not
 
