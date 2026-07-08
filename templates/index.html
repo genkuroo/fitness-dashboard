@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fitness-dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --page: #f9f9f7; --surface: #fcfcfb;
+      --text-primary: #0b0b0b; --text-secondary: #52514e; --muted: #898781;
+      --gridline: #e1e0d9; --baseline: #c3c2b7;
+      --border: rgba(11,11,11,0.10);
+      --good: #006300;
+      --series-weight: #2a78d6;   /* blue  */
+      --series-cal:    #eb6834;   /* orange */
+      --series-run:    #1baf7a;   /* aqua  */
+      --series-str:    #4a3aa7;   /* violet */
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #0d0d0d; --surface: #1a1a19;
+        --text-primary: #ffffff; --text-secondary: #c3c2b7; --muted: #898781;
+        --gridline: #2c2c2a; --baseline: #383835;
+        --border: rgba(255,255,255,0.10);
+        --good: #0ca30c;
+        --series-weight: #3987e5; --series-cal: #d95926;
+        --series-run: #199e70;   --series-str: #9085e9;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--page); color: var(--text-primary);
+      font-family: var(--font); line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+    header { display: flex; align-items: baseline; justify-content: space-between;
+             gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+    h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+    .sub { color: var(--text-secondary); font-size: 14px; margin: 0 0 24px; }
+    button {
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      color: var(--text-primary); background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 14px; cursor: pointer;
+    }
+    button:hover { border-color: var(--baseline); }
+    .flash { background: var(--surface); border: 1px solid var(--border);
+             border-left: 3px solid var(--series-weight); border-radius: 8px;
+             padding: 10px 14px; margin-bottom: 20px; font-size: 14px; }
+
+    /* KPI tiles */
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+             margin-bottom: 24px; }
+    @media (max-width: 720px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+    .tile { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; }
+    .tile .label { color: var(--muted); font-size: 12px; text-transform: uppercase;
+                   letter-spacing: 0.04em; margin-bottom: 8px; }
+    .tile .value { font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+    .tile .value small { font-size: 15px; font-weight: 500; color: var(--text-secondary); }
+    .tile .ctx { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .tile .ctx.good { color: var(--good); font-weight: 600; }
+
+    /* Chart panels */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    .panel { background: var(--surface); border: 1px solid var(--border);
+             border-radius: 12px; padding: 16px 16px 12px; }
+    .panel h2 { font-size: 14px; margin: 0 0 2px; }
+    .panel .cap { color: var(--text-secondary); font-size: 12px; margin: 0 0 12px; }
+    .chart-box { position: relative; height: 220px; }
+    details { margin-top: 10px; }
+    details summary { font-size: 12px; color: var(--muted); cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px;
+            font-variant-numeric: tabular-nums; }
+    th, td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--gridline); }
+    th:first-child, td:first-child { text-align: left; color: var(--text-secondary); }
+    thead th { color: var(--muted); font-weight: 600; }
+    .empty { background: var(--surface); border: 1px dashed var(--baseline);
+             border-radius: 12px; padding: 40px; text-align: center;
+             color: var(--text-secondary); }
+    code { background: var(--gridline); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  {# Macro renders a chart panel + its accessible data table. Defined before use. #}
+  {% macro panel(id, title, cap, series, kind, colorvar, unit) %}
+    <div class="panel">
+      <h2>{{ title }}</h2>
+      <p class="cap">{{ cap }}</p>
+      <div class="chart-box"><canvas id="chart-{{ id }}"></canvas></div>
+      <details>
+        <summary>Show data</summary>
+        <table>
+          <thead><tr><th>Date</th><th>{{ unit }}</th></tr></thead>
+          <tbody>
+            {% for label in series['labels'] %}
+              <tr><td>{{ label }}</td><td>{{ series['values'][loop.index0] }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+    </div>
+    <script type="application/json" id="data-{{ id }}">
+      {{ {"labels": series['labels'], "values": series['values'], "kind": kind,
+          "colorvar": colorvar, "unit": unit, "title": title} | tojson }}
+    </script>
+  {% endmacro %}
+
+  <div class="wrap">
+    <header>
+      <h1>fitness-dashboard</h1>
+      <form method="post" action="{{ url_for('refresh') }}">
+        <button type="submit">↻ Sync now</button>
+      </form>
+    </header>
+    <p class="sub">Cardio, strength, diet &amp; weight — in one place.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endwith %}
+
+    {% if not has_data %}
+      <div class="empty">
+        <p>No data yet.</p>
+        <p>Load synthetic demo data with <code>python scripts/seed_demo.py</code>,
+           or connect a source and hit <strong>Sync now</strong>.</p>
+      </div>
+    {% else %}
+      {% set k = data.kpis %}
+      <div class="tiles">
+        <div class="tile">
+          <div class="label">Current weight</div>
+          <div class="value">{{ k.weight.value }}<small> {{ k.weight.unit }}</small></div>
+          {% if k.weight.delta is not none %}
+            <div class="ctx {{ 'good' if k.weight.delta < 0 else '' }}">
+              {{ '▼' if k.weight.delta < 0 else '▲' }} {{ k.weight.delta|abs }} lb / 30d
+            </div>
+          {% endif %}
+        </div>
+        <div class="tile">
+          <div class="label">Avg calories</div>
+          <div class="value">{{ k.avg_calories.value }}<small> /day</small></div>
+          <div class="ctx">last 14 days</div>
+        </div>
+        <div class="tile">
+          <div class="label">Total distance</div>
+          <div class="value">{{ k.running.miles }}<small> mi</small></div>
+          <div class="ctx">across {{ k.running.runs }} runs</div>
+        </div>
+        <div class="tile">
+          <div class="label">Workouts</div>
+          <div class="value">{{ k.workouts.value }}</div>
+          <div class="ctx">runs + lifting days</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        {{ panel("weight", "Bodyweight", "Daily, lb", data.weight, "line", "--series-weight", "lb") }}
+        {{ panel("calories", "Calorie intake", "Daily, kcal", data.calories, "line", "--series-cal", "kcal") }}
+        {{ panel("running", "Running distance", "Per week, miles", data.running, "bar", "--series-run", "mi") }}
+        {{ panel("strength", "Strength volume", "Per week, 1000s lb", data.strength, "bar", "--series-str", "k") }}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if has_data %}
+  <script>
+    const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+    Chart.defaults.font.family = css('--font') || 'system-ui, sans-serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = css('--muted');
+
+    const charts = {};
+
+    function build(id) {
+      const spec = JSON.parse(document.getElementById('data-' + id).textContent);
+      const color = css(spec.colorvar);
+      const ctx = document.getElementById('chart-' + id);
+      const isBar = spec.kind === 'bar';
+
+      const dataset = isBar
+        ? { data: spec.values, backgroundColor: color, borderRadius: 4,
+            borderSkipped: false, categoryPercentage: 0.72, barPercentage: 0.86 }
+        : { data: spec.values, borderColor: color, borderWidth: 2,
+            pointRadius: 0, pointHoverRadius: 4, tension: 0.25,
+            fill: false };
+
+      return new Chart(ctx, {
+        type: spec.kind,
+        data: { labels: spec.labels, datasets: [Object.assign({ label: spec.title }, dataset)] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },               // single series — title names it
+            tooltip: {
+              callbacks: {
+                label: (c) => ` ${c.formattedValue} ${spec.unit}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              border: { color: css('--baseline') },
+              ticks: { maxTicksLimit: 6, maxRotation: 0, autoSkip: true, color: css('--muted') }
+            },
+            y: {
+              grace: '8%',
+              grid: { color: css('--gridline'), drawTicks: false },
+              border: { display: false },
+              ticks: { maxTicksLimit: 5, color: css('--muted') }
+            }
+          }
+        }
+      });
+    }
+
+    function buildAll() {
+      ['weight', 'calories', 'running', 'strength'].forEach((id) => {
+        if (document.getElementById('chart-' + id)) charts[id] = build(id);
+      });
+    }
+    buildAll();
+
+    // Recolor charts if the OS theme flips while the page is open.
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      Object.values(charts).forEach((c) => c.destroy());
+      Chart.defaults.color = css('--muted');
+      buildAll();
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

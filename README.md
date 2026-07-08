@@ -68,7 +68,7 @@ Then, as the phases land:
 python pipeline.py --source strava     # Phase 1: pull real activities
 # drop a MyNetDiary CSV export into imports/, then:
 python pipeline.py --source mynetdiary # Phase 2: import weight + nutrition
-python app.py                          # Phase 3: dashboard on http://localhost:5001
+python app.py                          # Phase 3: dashboard on http://localhost:5002
 ```
 
 ## Data flow

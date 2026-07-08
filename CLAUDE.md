@@ -38,7 +38,7 @@ does.
   are safe. `INSERT OR IGNORE` for backfill, `INSERT OR REPLACE` for daily rows.
 - `pipeline.py` (argparse CLI) loops enabled connectors inside per-source
   try/except so one broken source never aborts the run.
-- `app.py` (Flask, port 5001) is **DB-only** — it never calls an external API;
+- `app.py` (Flask, port 5002) is **DB-only** — it never calls an external API;
   its refresh button shells out to `pipeline.py`.
 - Secrets in `.env` (loaded by `run.sh`); hand-edited `config.json` for source flags.
 
@@ -50,7 +50,8 @@ does.
       `strava_auth.py` is the one-time login helper.
 - [x] **Phase 2 — MyNetDiary importer.** CSV in `imports/` → `body_metrics` + `nutrition`.
       Tolerant keyword-based column matching; auto-routes weight vs nutrition files.
-- [ ] **Phase 3 — Flask dashboard.** DB-only, port 5001, combined timeline + refresh.
+- [x] **Phase 3 — Flask dashboard.** DB-only, port 5002 (auto-shifts if busy),
+      KPI tiles + 4 charts (analytics.py → Chart.js), data tables, Sync button.
 - [ ] **Phase 4 — Liftoff connector.** Opt-in, `--enable-liftoff` → `strength_sets`.
 - [ ] **Phase 5 — Cross-source analytics.** pandas join → Chart.js (training load
       vs weight vs calories). The payoff.
@@ -64,7 +65,7 @@ pip install -r requirements.txt
 
 python scripts/seed_demo.py     # populate synthetic demo data
 python pipeline.py --source strava   # (after Phase 1) real Strava pull
-python app.py                   # (after Phase 3) dashboard on :5001
+python app.py                   # (after Phase 3) dashboard on :5002
 ```
 
 ## Note on Claude specifics
