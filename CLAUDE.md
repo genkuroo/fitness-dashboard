@@ -48,7 +48,8 @@ does.
       `pipeline.py` dispatch, `seed_demo.py`, docs.
 - [x] **Phase 1 — Strava connector.** OAuth refresh-token flow → `activities`.
       `strava_auth.py` is the one-time login helper.
-- [ ] **Phase 2 — MyNetDiary importer.** CSV in `imports/` → `body_metrics` + `nutrition`.
+- [x] **Phase 2 — MyNetDiary importer.** CSV in `imports/` → `body_metrics` + `nutrition`.
+      Tolerant keyword-based column matching; auto-routes weight vs nutrition files.
 - [ ] **Phase 3 — Flask dashboard.** DB-only, port 5001, combined timeline + refresh.
 - [ ] **Phase 4 — Liftoff connector.** Opt-in, `--enable-liftoff` → `strength_sets`.
 - [ ] **Phase 5 — Cross-source analytics.** pandas join → Chart.js (training load
