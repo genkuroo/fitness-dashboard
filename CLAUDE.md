@@ -10,7 +10,7 @@ place:
 
 - **Strava** (cardio) — official OAuth REST API.
 - **MyNetDiary** (diet + weight) — manual CSV export dropped into `imports/`.
-- **Liftoff** (strength) — unofficial private-API route; **opt-in, off by default**.
+- **Liftoff** (strength) — manual JSON export dropped in `imports/`; **opt-in, off by default**.
 
 The point isn't just consolidation, it's the *join*: line up training load
 against weight trend against calories on one timeline — something no single app
@@ -26,8 +26,10 @@ does.
   installed. It never produces or influences a chart.
 - **Never commit real health data.** `fitness.db`, `imports/*`, and `.env` are
   gitignored. The public repo shows code + synthetic demo data only.
-- **Liftoff is opt-in.** `enabled: false` in `config.json`; only runs with
-  `--enable-liftoff`. No credentials committed. Personal use only.
+- **Liftoff is opt-in and credential-free.** `enabled: false` in `config.json`;
+  only runs with `--enable-liftoff`. The connector reads a JSON export the user
+  drops in `imports/liftoff_*.json` — it never handles the Liftoff login. Personal
+  use only.
 - **Commits/PRs: no AI attribution** (workspace convention).
 
 ## Architecture
@@ -52,7 +54,8 @@ does.
       Tolerant keyword-based column matching; auto-routes weight vs nutrition files.
 - [x] **Phase 3 — Flask dashboard.** DB-only, port 5002 (auto-shifts if busy),
       KPI tiles + 4 charts (analytics.py → Chart.js), data tables, Sync button.
-- [ ] **Phase 4 — Liftoff connector.** Opt-in, `--enable-liftoff` → `strength_sets`.
+- [x] **Phase 4 — Liftoff connector.** Opt-in file importer (`imports/liftoff_*.json`,
+      `--enable-liftoff`) → `strength_sets`. Keeps only WR sets; kg→lb. No creds.
 - [ ] **Phase 5 — Cross-source analytics.** pandas join → Chart.js (training load
       vs weight vs calories). The payoff.
 - [ ] **Phase 6 — (optional) Claude trend summary.** Manual, text-only prose caption.

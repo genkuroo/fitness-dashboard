@@ -10,7 +10,7 @@
     },
     "liftoff": {
       "enabled": false,
-      "note": "Unofficial private-API route. Disabled by default; enable with --enable-liftoff. Personal use only."
+      "note": "Reads a workout JSON export you drop into imports/ (liftoff_*.json). Off by default; enable with --enable-liftoff. Personal use only."
     }
   }
 }

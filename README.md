@@ -16,7 +16,7 @@ the code treats each one accordingly:
 |---|---|---|---|
 | **Strava** | Cardio (runs, rides) | Official OAuth REST API | Fully sanctioned |
 | **MyNetDiary** | Diet + weight | Built-in CSV/Excel export | Sanctioned |
-| **Liftoff** | Strength (gym) | Unofficial private-API route | Opt-in, off by default |
+| **Liftoff** | Strength (gym) | Manual JSON export you drop in `imports/` | Opt-in, off by default |
 
 Each source is a **connector** (`connectors/`) implementing one small interface,
 so the pipeline doesn't care how the data was obtained — it just syncs each
@@ -25,11 +25,17 @@ source never takes down the rest.
 
 ### A note on Liftoff
 
-Liftoff has no official API or export, so its connector uses the same private API
-the phone app does. That's a Terms-of-Service gray area (it's *my own* data, so
-not a legal issue — worst case is account closure), so it's **disabled by
-default**, ships **no credentials**, and only runs when you explicitly pass
-`--enable-liftoff`. Everything else uses official channels.
+Liftoff has no official API or export. Reaching your data is a Terms-of-Service
+gray area (it's *my own* data, so not a legal issue — worst case is account
+closure), so this connector is deliberately hands-off about credentials: **it
+never touches your Liftoff login.** Instead, *you* produce a workout JSON export
+however you trust — e.g. with the community tool
+[`liftoff-export`](https://github.com/DTTerastar/liftoff-export-cli),
+`liftoff-export workouts list --format json > imports/liftoff_workouts.json` —
+and this connector just reads that file. It's **off by default**, ships **no
+credentials**, and only runs when you explicitly pass `--enable-liftoff`.
+Whatever you decide to trust for the login step stays entirely outside this
+project's code. Everything else uses official channels.
 
 ## Design principles
 
