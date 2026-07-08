@@ -51,10 +51,20 @@ pip install -r requirements.txt
 python scripts/seed_demo.py
 ```
 
+### Connecting Strava (one-time)
+
+1. Register a personal API app at [strava.com/settings/api](https://www.strava.com/settings/api).
+   Any name works; set **Authorization Callback Domain** to `localhost`.
+2. Copy `.env.example` to `.env` and paste in the **Client ID** and **Client Secret** it gives you.
+3. Get a long-lived refresh token (opens a browser, you approve once):
+   ```bash
+   python strava_auth.py     # prints STRAVA_REFRESH_TOKEN — paste it into .env
+   ```
+4. You're set. `python pipeline.py --source strava` now pulls your activities.
+
 Then, as the phases land:
 
 ```bash
-cp .env.example .env          # add your Strava OAuth credentials
 python pipeline.py --source strava     # Phase 1: pull real activities
 # drop a MyNetDiary CSV export into imports/, then:
 python pipeline.py --source mynetdiary # Phase 2: import weight + nutrition
