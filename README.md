@@ -39,11 +39,11 @@ project's code. Everything else uses official channels.
 
 ## Design principles
 
-- **Code owns the visuals.** Every chart is computed deterministically from the
-  data with `pandas` + Chart.js. There is **no AI-generated imagery**.
-- **AI is optional and text-only.** An optional, manually-triggered feature
-  (Phase 6) can write a short *prose* summary of the computed trends. The app is
-  fully functional without it, and it never touches a chart.
+- **Code owns everything.** Every number, chart, and insight is computed
+  deterministically from the data with `pandas` + Chart.js. **This project contains
+  no AI** — no generated imagery, no generated text, no model API calls. When the
+  dashboard tells you that eating more tracked with gaining, that sentence is
+  driven by a correlation coefficient, not a language model.
 - **Real health data never gets committed** — the database, manual exports, and
   secrets are all gitignored. The repo ships synthetic demo data instead.
 
@@ -87,14 +87,18 @@ Liftoff (opt-in)┘                                   (SQLite)     (Flask, chart
 
 ## Status
 
-Phases 0–5 complete — the pipeline, all three connectors, the dashboard, and the
-**cross-source view** are in. That last one is the payoff: alongside the per-source
-charts, the dashboard now aligns every feed on a single weekly timeline (weight and
-calories as lines, a training-load index as bars) and computes the correlations
-between them — reporting, in plain English, whether eating more actually tracked
-with gaining and training harder tracked with losing. Phase 6 (an optional,
-text-only Claude trend summary) is the only piece left. See `CLAUDE.md` for the
-full phase checklist.
+**Feature-complete.** Phases 0–5 are in — the pipeline, all three connectors, the
+dashboard, and the **cross-source view**. That last one is the payoff: alongside the
+per-source charts, the dashboard aligns every feed on a single weekly timeline
+(weight and calories as lines, a training-load index as bars) and computes the
+correlations between them — reporting, in plain English, whether eating more actually
+tracked with gaining and training harder tracked with losing.
+
+A sixth phase (an optional AI-written trend summary) was scoped and then
+**deliberately cancelled**: the correlation insights already state what the data
+shows, deterministically and reproducibly. Adding a language model would have meant
+a new dependency, an API key, and a non-reproducible surface — for no analytical
+gain. See `CLAUDE.md` for the full phase checklist.
 
 ## What it's not
 

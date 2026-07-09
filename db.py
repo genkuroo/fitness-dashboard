@@ -72,16 +72,6 @@ def init_db(conn=None):
         )"""
     )
 
-    # Optional Phase-6 prose summaries. Populated only on manual request.
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS weekly_tldr (
-            week_start TEXT PRIMARY KEY,   -- Monday, YYYY-MM-DD
-            summary    TEXT,
-            trend      TEXT,               -- e.g. up / flat / down
-            generated  TEXT                -- ISO timestamp
-        )"""
-    )
-
     conn.commit()
     if own:
         conn.close()

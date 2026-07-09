@@ -4,7 +4,6 @@ Usage:
     python pipeline.py                     # sync every enabled source
     python pipeline.py --source strava     # sync just one source
     python pipeline.py --enable-liftoff    # also run the opt-in Liftoff source
-    python pipeline.py --summarize         # (Phase 6) manual, text-only trend summary
 
 The dashboard (app.py) never calls this directly except via its refresh button;
 it only ever reads fitness.db.
@@ -96,18 +95,7 @@ def main(argv=None):
     parser.add_argument("--source", help="only sync this source (strava, mynetdiary, liftoff)")
     parser.add_argument("--enable-liftoff", action="store_true",
                         help="opt in to the unofficial Liftoff source for this run")
-    parser.add_argument("--summarize", action="store_true",
-                        help="(Phase 6) generate a manual, text-only trend summary — never auto-runs")
     args = parser.parse_args(argv)
-
-    if args.summarize:
-        try:
-            import tldr
-        except ImportError:
-            print("Trend summaries (Phase 6) aren't set up yet.")
-            return 1
-        tldr.summarize()
-        return 0
 
     run_sync(only=args.source, enable_liftoff=args.enable_liftoff)
     return 0

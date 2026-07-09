@@ -18,12 +18,11 @@ does.
 
 ## Hard rules
 
-- **Code owns the visuals.** Every chart/infographic is computed deterministically
-  from the data (`pandas` → Chart.js). **No AI-generated imagery, ever.**
-- **AI is optional, text-only, manual (Phase 6).** Claude only writes a prose
-  summary of already-computed trends, only when explicitly asked
-  (`pipeline.py --summarize`). The app is fully functional with `anthropic` not
-  installed. It never produces or influences a chart.
+- **Code owns everything.** Every number, chart, and insight is computed
+  deterministically from the data (`pandas` → Chart.js). **This project contains no
+  AI**: no generated imagery, no generated text, no API calls to a model. The
+  correlations say what the data says. Don't add an AI dependency — a "just a text
+  caption" summary was scoped as Phase 6 and deliberately **cancelled**.
 - **Never commit real health data.** `fitness.db`, `imports/*`, and `.env` are
   gitignored. The public repo shows code + synthetic demo data only.
 - **Liftoff is opt-in and credential-free.** `enabled: false` in `config.json`;
@@ -61,7 +60,11 @@ does.
       over a training-load index (bars), and an insights strip reports Pearson `r`
       for calories↔weight-change, training↔weight-change, training↔calories in plain
       English. Demo seeder simulates weight from energy balance so the signal is real.
-- [ ] **Phase 6 — (optional) Claude trend summary.** Manual, text-only prose caption.
+- ~~**Phase 6 — Claude trend summary.**~~ **Cancelled.** The dashboard's job is to
+      compute and state what the data shows; the correlation insights already do that
+      in plain English, deterministically. An AI prose caption would add a dependency,
+      an API key, and a non-reproducible surface for zero analytical gain. The project
+      is complete at Phase 5.
 
 ## Running
 
@@ -70,12 +73,6 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 python scripts/seed_demo.py     # populate synthetic demo data
-python pipeline.py --source strava   # (after Phase 1) real Strava pull
-python app.py                   # (after Phase 3) dashboard on :5002
+python pipeline.py --source strava   # real Strava pull
+python app.py                   # dashboard on :5002
 ```
-
-## Note on Claude specifics
-
-Before writing `tldr.py` (Phase 6), re-verify the current model id and
-structured-output syntax via the `claude-api` skill rather than copying blind
-from `stock-tracker`.
