@@ -17,7 +17,12 @@ unofficial export path, and reaching your data is a Terms-of-Service gray area
 Expected file: imports/liftoff_*.json — a JSON array of workout "Post" objects
 (the shape `liftoff-export` emits). Each Post has exerciseData[]; we keep only
 weight/reps exercises (exerciseTypes == "WR"), where setsData[].inputOne is
-weight in kg and inputTwo is reps. Weight is converted to lb to match the app.
+weight and inputTwo is reps.
+
+Units: the export carries your app's *display* units, not a fixed unit. Most
+setups (incl. US) show pounds, so we store the weight as-is by default. If your
+Liftoff app is set to kilograms, set "weight_in_kg": true in config.json and we
+convert to lb (the unit `strength_sets` stores).
 """
 
 import glob
@@ -54,6 +59,9 @@ class LiftoffConnector(Connector):
                   f"workouts, skipping")
             return 0
 
+        # The export uses the app's display units; convert only if it's kg.
+        to_lb = KG_TO_LB if self.config.get("weight_in_kg", False) else 1.0
+
         rows = 0
         # Number sets per (date, exercise) so two sessions of the same lift on one
         # day get sequential set numbers instead of colliding on the UNIQUE key.
@@ -70,9 +78,9 @@ class LiftoffConnector(Connector):
                     continue
                 name = ex.get("exerciseName") or "Unknown"
                 for s in ex.get("setsData", []):
-                    weight_kg = _num(s.get("inputOne"))
+                    weight = _num(s.get("inputOne"))
                     reps = _num(s.get("inputTwo"))
-                    if weight_kg is None or reps is None:
+                    if weight is None or reps is None:
                         continue
                     key = (date, name)
                     set_counter[key] = set_counter.get(key, 0) + 1
@@ -80,7 +88,7 @@ class LiftoffConnector(Connector):
                         """INSERT OR IGNORE INTO strength_sets
                            (date, exercise, set_no, weight, reps) VALUES (?,?,?,?,?)""",
                         (date, name, set_counter[key],
-                         round(weight_kg * KG_TO_LB, 1), int(round(reps))),
+                         round(weight * to_lb, 1), int(round(reps))),
                     )
                     rows += 1
 

@@ -14,7 +14,8 @@
     },
     "liftoff": {
       "enabled": false,
-      "note": "Reads a workout JSON export you drop into imports/ (liftoff_*.json). Off by default; enable with --enable-liftoff. Personal use only."
+      "weight_in_kg": false,
+      "note": "Reads a workout JSON export you drop into imports/ (liftoff_*.json). Off by default; enable with --enable-liftoff. Personal use only. Set weight_in_kg:true only if your Liftoff app displays weights in kg (the export uses your app's display units); default false = pounds."
     }
   }
 }
