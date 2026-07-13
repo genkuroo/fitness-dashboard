@@ -39,6 +39,11 @@ def build_connectors(config, enable_liftoff=False):
     except ImportError:
         pass
     try:
+        from connectors.strava_csv import StravaCsvConnector
+        registry["strava_csv"] = StravaCsvConnector
+    except ImportError:
+        pass
+    try:
         from connectors.mynetdiary import MyNetDiaryConnector
         registry["mynetdiary"] = MyNetDiaryConnector
     except ImportError:

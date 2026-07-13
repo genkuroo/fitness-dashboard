@@ -31,8 +31,13 @@ def calories_series(conn) -> dict:
             "values": [round(v) for v in df["calories"].tolist()]}
 
 
-def weekly_running_miles(conn) -> dict:
-    """Running distance summed per calendar week (bars), in miles."""
+def weekly_cardio_miles(conn) -> dict:
+    """Cardio distance summed per calendar week (bars), in miles.
+
+    Strength sessions are excluded upstream (the Strava connector skips them),
+    so every activity row here is genuine cardio; walks/hikes logged without GPS
+    simply contribute no distance.
+    """
     df = _read(conn, "SELECT date, distance_m FROM activities",
                parse_dates=["date"])
     if df.empty:
@@ -63,7 +68,7 @@ def kpis(conn) -> dict:
     weight = _read(conn, "SELECT date, weight FROM body_metrics ORDER BY date")
     nutrition = _read(conn, "SELECT date, calories FROM nutrition ORDER BY date",
                       parse_dates=["date"])
-    activities = _read(conn, "SELECT date, distance_m FROM activities")
+    activities = _read(conn, "SELECT date, sport_type, distance_m FROM activities")
     strength = _read(conn, "SELECT DISTINCT date FROM strength_sets")
 
     out = {}
@@ -84,17 +89,27 @@ def kpis(conn) -> dict:
     else:
         out["avg_calories"] = {"value": None}
 
-    # Total running distance (miles) and run count.
+    # Total cardio distance (miles) + a per-type session breakdown, so the tile
+    # says "11 runs · 8 walks · 1 hike" instead of miscounting everything as runs.
     if not activities.empty:
-        out["running"] = {"miles": round(activities["distance_m"].sum() / METERS_PER_MILE, 1),
-                          "runs": int(len(activities))}
+        miles = round(activities["distance_m"].fillna(0).sum() / METERS_PER_MILE, 1)
+        counts = activities["sport_type"].fillna("Other").value_counts()
+        by_type = [(str(t), int(n)) for t, n in counts.items()]
+        out["cardio"] = {"miles": miles, "sessions": int(len(activities)),
+                         "breakdown": _breakdown_phrase(by_type)}
     else:
-        out["running"] = {"miles": 0, "runs": 0}
+        out["cardio"] = {"miles": 0, "sessions": 0, "breakdown": ""}
 
-    # Workouts logged = runs + distinct lifting days.
+    # Workouts logged = cardio sessions + distinct lifting days.
     out["workouts"] = {"value": int(len(activities)) + int(len(strength))}
 
     return out
+
+
+def _breakdown_phrase(by_type) -> str:
+    """Turn [('Run', 11), ('Walk', 8), ('Hike', 1)] into '11 runs · 8 walks · 1 hike'."""
+    parts = [f"{n} {t.lower()}{'s' if n != 1 else ''}" for t, n in by_type]
+    return " · ".join(parts)
 
 
 def _days_before(date_str, days):
@@ -145,7 +160,7 @@ def weekly_frame(conn) -> pd.DataFrame:
     noisy, the week's average is the real trend). Weeks with no training are a
     genuine 0; weeks with no weigh-in / no food log stay NaN (missing != zero).
 
-    'training_load' is a synthetic 0-100 index: running miles and strength volume
+    'training_load' is a synthetic 0-100 index: cardio miles and strength volume
     live in different units and can't just be added, so each is min-max normalized
     across the block and averaged. It's a relative "how hard was this week" number,
     not an absolute one — documented here and in the chart tooltip so it's honest.
@@ -261,7 +276,7 @@ def dashboard_data(conn) -> dict:
         "kpis": kpis(conn),
         "weight": weight_series(conn),
         "calories": calories_series(conn),
-        "running": weekly_running_miles(conn),
+        "cardio": weekly_cardio_miles(conn),
         "strength": weekly_strength_volume(conn),
         "cross": cross_source(conn),
         "correlations": correlations(conn),

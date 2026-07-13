@@ -1,8 +1,12 @@
 {
   "sources": {
     "strava": {
+      "enabled": false,
+      "note": "Official Strava OAuth API. DISABLED: since 2026-06-30 Strava's API requires a paid subscription. Set enabled:true only if you subscribe and have creds in .env. Free path is strava_csv below."
+    },
+    "strava_csv": {
       "enabled": true,
-      "note": "Official Strava OAuth API. Credentials come from .env."
+      "note": "Free path: reads Strava's bulk data export (activities.csv) dropped into imports/ as strava_*.csv. No API, no subscription. See imports/README.md."
     },
     "mynetdiary": {
       "enabled": true,

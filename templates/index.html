@@ -47,6 +47,19 @@
       padding: 8px 14px; cursor: pointer;
     }
     button:hover { border-color: var(--baseline); }
+    .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .upload { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+              background: var(--surface); border: 1px solid var(--border);
+              border-radius: 8px; padding: 6px 8px; }
+    .upload select, .upload input[type=file] {
+      font-family: var(--font); font-size: 12px; color: var(--text-primary);
+      background: transparent; border: none; }
+    .upload select { border-right: 1px solid var(--border); padding-right: 8px; cursor: pointer; }
+    .upload input[type=file]::file-selector-button {
+      font-family: var(--font); font-size: 12px; font-weight: 600;
+      color: var(--text-primary); background: var(--gridline);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 8px; margin-right: 8px; cursor: pointer; }
     .flash { background: var(--surface); border: 1px solid var(--border);
              border-left: 3px solid var(--series-weight); border-radius: 8px;
              padding: 10px 14px; margin-bottom: 20px; font-size: 14px; }
@@ -132,9 +145,20 @@
   <div class="wrap">
     <header>
       <h1>fitness-dashboard</h1>
-      <form method="post" action="{{ url_for('refresh') }}">
-        <button type="submit">↻ Sync now</button>
-      </form>
+      <div class="actions">
+        <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="upload">
+          <select name="source" aria-label="Source for uploaded file">
+            <option value="strava_csv">Strava CSV</option>
+            <option value="mynetdiary">MyNetDiary CSV</option>
+            <option value="liftoff">Liftoff JSON</option>
+          </select>
+          <input type="file" name="file" accept=".csv,.json,.xls,.xlsx" required>
+          <button type="submit">⬆ Import file</button>
+        </form>
+        <form method="post" action="{{ url_for('refresh') }}">
+          <button type="submit">↻ Sync now</button>
+        </form>
+      </div>
     </header>
     <p class="sub">Cardio, strength, diet &amp; weight — in one place.</p>
 
@@ -167,13 +191,13 @@
         </div>
         <div class="tile">
           <div class="label">Total distance</div>
-          <div class="value">{{ k.running.miles }}<small> mi</small></div>
-          <div class="ctx">across {{ k.running.runs }} runs</div>
+          <div class="value">{{ k.cardio.miles }}<small> mi</small></div>
+          <div class="ctx">{{ k.cardio.breakdown or 'no activities yet' }}</div>
         </div>
         <div class="tile">
           <div class="label">Workouts</div>
           <div class="value">{{ k.workouts.value }}</div>
-          <div class="ctx">runs + lifting days</div>
+          <div class="ctx">cardio + lifting days</div>
         </div>
       </div>
 
@@ -181,7 +205,7 @@
       <div class="panel" style="margin-bottom: 16px;">
         <h2>Weight, calories &amp; training load by week</h2>
         <p class="cap">Bodyweight (left axis) and average daily calories (right axis) as
-           lines; training load — a 0–100 index blending running miles and lifting
+           lines; training load — a 0–100 index blending cardio miles and lifting
            volume — as bars behind. The question: do they move together?</p>
         <div class="chart-box tall"><canvas id="chart-cross"></canvas></div>
       </div>
@@ -204,7 +228,7 @@
       <div class="grid">
         {{ panel("weight", "Bodyweight", "Daily, lb", data.weight, "line", "--series-weight", "lb") }}
         {{ panel("calories", "Calorie intake", "Daily, kcal", data.calories, "line", "--series-cal", "kcal") }}
-        {{ panel("running", "Running distance", "Per week, miles", data.running, "bar", "--series-run", "mi") }}
+        {{ panel("cardio", "Cardio distance", "Per week, miles", data.cardio, "bar", "--series-run", "mi") }}
         {{ panel("strength", "Strength volume", "Per week, 1000s lb", data.strength, "bar", "--series-str", "k") }}
       </div>
     {% endif %}
@@ -327,7 +351,7 @@
     }
 
     function buildAll() {
-      ['weight', 'calories', 'running', 'strength'].forEach((id) => {
+      ['weight', 'calories', 'cardio', 'strength'].forEach((id) => {
         if (document.getElementById('chart-' + id)) charts[id] = build(id);
       });
       const cross = buildCross();
